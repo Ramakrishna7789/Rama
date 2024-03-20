@@ -1,0 +1,8 @@
+#!/bin/bash  
+CRON_DIR=/scratch/karumulb/Operational/
+
+00 20 * * * sh /scratch/karumulb/Operational/gfsForecastDownload.sh
+00 21 * * * sh /scratch/karumulb/Operational/run.sh
+
+00 06 * * * sh /scratch/karumulb/Operational/ARWpost/run1.sh
+

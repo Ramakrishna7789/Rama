@@ -1,0 +1,78 @@
+#!/bin/bash
+#SBATCH -A k1254
+#SBATCH -J extj_YEAR_EDITMON_EDIT
+#SBATCH -N 1
+#SBATCH -t 300
+##SBATCH --partition=debug
+#SBATCH --mem=MaxMemPerNode
+#SBATCH -o /scratch/karumulb/Hari_data/logs/out_ext_YEAR_EDITMON_EDIT
+#SBATCH -e /scratch/karumulb/Hari_data/logs/err_ext_YEAR_EDITMON_EDIT
+
+module unload PrgEnv-cray  PrgEnv-gnu  PrgEnv-intel
+#module load PrgEnv-cray
+#module load wgrib2/3.0.0    cray-netcdf
+
+#module swap PrgEnv-cray  PrgEnv-intel
+#module load cdo/1.9.10 
+salloc -p debug
+module load PrgEnv-gnu
+module load cdo 
+
+set -x 
+
+date
+
+export SRC=/project/k1254/rama/Hari_prasad/Scripts_work/Utils     ## where wgrib2 located 
+export DATA=/project/k1254/hari/GRIB2DATA/PBL_MICRO_SFXVARS/   ## INPUT DATA PATH 
+#export DATA=/project/k1254/srinivas/script_rockoto/OUTPUTS/OPER/PBL_VARS/   ## INPUT DATA PATH 
+#export SRC=/scratch/desamss/ds.test/Jeff        ## SOURCE DIR (where this file exists)
+export ODIR=/scratch/karumulb/Hari_data/wrkdir/Output             ## OUTPUT DIR 
+export WRKDIR=/scratch/karumulb/Hari_data/wrkdir/Solor    # WORKDIR 
+
+year=YEAR_EDIT
+mon=MON_EDIT
+
+export WRK=$WRKDIR/${year}.${mon}
+
+rm -rf $WRK 
+mkdir -p $WRK $WRK/outs ; cd $WRK
+export OUTDIR=$ODIR
+[ ! -d $OUTDIR ] && mkdir -p $OUTDIR
+
+#cp -f  $SRC/sfc.table     .    ## Converts Input Variable to Output Variable names 
+#cp -f  $SRC/wgrib2       .
+
+for dom in 2 ; do
+
+#ln -sf ${DATA}/DOM${dom}/${year}/${year}${mon}??.grb2     .
+ln -sf ${DATA}/${year}/${year}${mon}??/DOM${dom}/${year}${mon}??_SFLUX.nc .
+
+for file in ${year}${mon}??_SFLUX.nc ; do
+  rm -f tmp.nc   tmp?.nc 
+  day=`echo $file | cut -c7-8`
+
+#  cdo -P 8 selvar,acswdnb,aclwdnb $file tmp1.nc 
+  cdo -P 8 selvar,acswupb,acswdnb,aclwupb,aclwdnb $file tmp1.nc 
+  cdo -delete,timestep=25   tmp1.nc     tmp2.nc
+  cdo -P 8 sellonlatbox,28,55,10,30 tmp2.nc tmp3.nc 
+#  cdo -P 8 -remapnn,lon=38.944816_lat=22.257283  tmp1.nc   tmp2.nc 
+#  cdo -P 8 seltimestep,13/36  tmp2.nc   tmp3.nc 
+  mv  tmp3.nc    ./outs/solor_${year}${mon}${day}.nc 
+  rm -f tmp?.nc  tmp.grb
+  unlink $file
+done   #file 
+
+  cd ./outs
+  export SKIP_SAME_TIME=1
+  cdo -P 8 mergetime solor_${year}${mon}??.nc solor_${year}${mon}.nc   
+
+  mv solor_${year}${mon}.nc  $OUTDIR/
+
+done # dom
+###
+
+date
+set +x 
+
+exit
+

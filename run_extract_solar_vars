@@ -1,0 +1,82 @@
+#!/bin/bash
+#SBATCH -A k1254
+#SBATCH -J extd_YEAR_EDITMON_EDIT
+#SBATCH -N 1
+#SBATCH -t 600
+##SBATCH --partition=debug
+#SBATCH --mem=MaxMemPerNode
+#SBATCH -o /scratch/karumulb/Hari_data/logs/out_ext_YEAR_EDITMON_EDIT
+#SBATCH -e /scratch/karumulb/Hari_data/logs/err_ext_YEAR_EDITMON_EDIT
+
+module unload PrgEnv-cray  PrgEnv-gnu  PrgEnv-intel
+#module load PrgEnv-cray
+#module load wgrib2/3.0.0    cray-netcdf
+
+#module swap PrgEnv-cray  PrgEnv-intel
+#module load cdo/1.9.10 
+salloc -p debug
+module load PrgEnv-gnu
+module load cdo
+
+set -x 
+
+date
+#export EXED=/project/k1028/srinivas/utils 
+export DATA2=/project/k1254/hari/GRIB2DATA/PBL_MICRO_SFXVARS/   ## INPUT DATA PATH 
+export ODIR=/scratch/karumulb/Hari_data/wrkdir/Output             ## OUTPUT DIR 
+export WRKDIR=/scratch/karumulb/Hari_data/wrkdir/Solor    # WORKDIR 
+
+year=YEAR_EDIT
+mon=MON_EDIT
+
+export WRK=$WRKDIR/${year}.${mon}
+
+rm -rf $WRK 
+mkdir -p $WRK ; cd $WRK
+
+export OUTDIR=$ODIR
+[ ! -d $OUTDIR ] && mkdir -p $OUTDIR
+
+export SKIP_SAME_TIME=1
+##------------------------------------------
+## Creating SOLAR GHI and DNI Values 
+##------------------------------------------
+
+ln -sf $DATA2/${year}/${year}${mon}??/DOM2/${year}${mon}??_SFLUX.nc  .
+
+for file in ${year}${mon}??_SFLUX.nc  ; do 
+
+rm -f tmp?.nc
+
+dd=`echo $file | cut -c7-8`
+
+cdo -P 8  -selname,coszen,swddni,swddif  ${file}   tmp1.nc
+cdo -delete,timestep=25   tmp1.nc     tmp2.nc
+#cdo -P 8 sellonlatbox,33.9,37.1,26.9,29.1 tmp1.nc   tmp2.nc 
+#cdo -P 8 sellonlatbox,30,45,20,30.0  tmp2.nc   tmp3.nc 
+cdo -P 8 -remapnn,lon=36.593668_lat=28.424996  tmp2.nc   tmp3.nc 
+#cdo -P 8 sellonlatbox,32,35.2,26,30.2  tmp2.nc   tmp3.nc 
+cdo -b 32 aexpr,'GHI=swddni*coszen+swddif' tmp3.nc  tmp4.nc
+#cdo -b 32 aexpr,'CLRINDX=swddif/GHI'       tmp4.nc  tmp5.nc
+#cdo delname,coszen tmp5.nc     tmp6.nc
+#cdo -P 8 -chname,swddni,DNI,swddif,DHI   tmp6.nc tmp7.nc
+#cdo selvar,GHI,CLRINDX,DNI,DHI tmp7.nc tmp8.nc
+#cdo selvar,GHI tmp7.nc tmp8.nc
+cdo selvar,GHI tmp4.nc tmp8.nc
+mv  tmp8.nc out_${year}${mon}${dd}.nc
+rm -f tmp?.nc
+
+unlink $file
+done #file
+
+export SKIP_SAME_TIME=1
+cdo -P 16 mergetime out_${year}${mon}??.nc     tmp9.nc
+#cdo -P 8 -selyear,$year -selmon,$mon   tmp7.nc tmp8.nc
+#cdo -P 16 monmean tmp8.nc    $OUTDIR/solar_vars_${year}${mon}.nc 
+mv tmp9.nc $OUTDIR/solar_vars_${year}${mon}.nc
+rm -f out_${year}${mon}??.nc
+rm -f tmp?.nc 
+
+set +x 
+
+exit
