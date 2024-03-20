@@ -1,0 +1,22 @@
+Host shaheen
+  HostName shaheen.hpc.kaust.edu.sa
+  ForwardX11Trusted yes
+  ForwardX11 yes
+  User karumulb
+  ServerAliveInterval 240
+  ControlMaster auto
+  ControlPath ~/.ssh/shaheen-%r@%h:%p
+  ControlPersist 0
+
+
+Host shaheen3
+  HostName login.hpc.kaust.edu.sa
+  ForwardX11Trusted yes
+  ForwardX11 yes
+  User karumulb
+  ServerAliveInterval 240
+  ControlMaster auto
+  ControlPath ~/.ssh/shaheen-%r@%h:%p
+  ControlPersist 0
+
+~                     
